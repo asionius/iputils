@@ -229,6 +229,9 @@ tftpd.o tftpsubs.o: tftp.h
 
 # -------------------------------------
 # ninfod
+#生成ninfod可执行文件
+#如果ninfod目录下没有Makefile文件则创建一个
+#如果有则将ninfod当作makefile的读取路径执行
 ninfod:
 	@set -e; \
 		if [ ! -f ninfod/Makefile ]; then \
@@ -240,12 +243,13 @@ ninfod:
 
 # -------------------------------------
 # modules / check-kernel are only for ancient kernels; obsolete
+#如果KERNEL_INCLUDE未被赋值，则显示重新设定KERNEL_INCLUDE
 check-kernel:
 ifeq ($(KERNEL_INCLUDE),)
 	@echo "Please, set correct KERNEL_INCLUDE"; false
 else
 	@set -e; \
-	if [ ! -r $(KERNEL_INCLUDE)/linux/autoconf.h ]; then \
+	if [ ! -r $(KERNEL_INCLUDE)/linux/autoconf.h ]; then \	##如果autoconf.h不是一个普通文件，则报错。
 		echo "Please, set correct KERNEL_INCLUDE"; false; fi
 endif
 
@@ -254,21 +258,22 @@ modules: check-kernel
 
 # -------------------------------------
 man:
-	$(MAKE) -C doc man
+	$(MAKE) -C doc man	#生成帮助文档
 
 html:
-	$(MAKE) -C doc html
+	$(MAKE) -C doc html	#生成网页版帮助文档
 
 clean:
-	@rm -f *.o $(TARGETS)
-	@$(MAKE) -C Modules clean
-	@$(MAKE) -C doc clean
+	@rm -f *.o $(TARGETS)	#删除所有的.o文件
+	@$(MAKE) -C Modules clean	#执行Modules目录下Makefile中的clean，删除指定的文件。
+	@$(MAKE) -C doc clean		#执行doc目录下Makefile中的clean，删除指定的文件。
 	@set -e; \
-		if [ -f ninfod/Makefile ]; then \
-			$(MAKE) -C ninfod clean; \
+		if [ -f ninfod/Makefile ]; then \	#如果ninfod目录下存在makefile文件，就进入ninfod目录并读取malefile文件，
+			$(MAKE) -C ninfod clean; \	#执行clean操作， 清除之前编译的可执行文件及配置文件
 		fi
 
 distclean: clean
+#清除ninfod目录下所有生成的文件。
 	@set -e; \
 		if [ -f ninfod/Makefile ]; then \
 			$(MAKE) -C ninfod distclean; \
@@ -277,18 +282,29 @@ distclean: clean
 # -------------------------------------
 snapshot:
 	@if [ x"$(UNAME_N)" != x"pleiades" ]; then echo "Not authorized to advance snapshot"; exit 1; fi
+#如果UNAME_N和pleiades的十六进制不等，提示信息，并退出。
 	@echo "[$(TAG)]" > RELNOTES.NEW
+#将TAG的内容重定向输出到RELNOTES.NEW
 	@echo >>RELNOTES.NEW
+#输出一个空行
 	@git log --no-merges $(LASTTAG).. | git shortlog >> RELNOTES.NEW
+#将没有merge的最后提交的内容和git shortlog的输出信息重定向到RELOTES.NEW文档里。
 	@echo >> RELNOTES.NEW
 	@cat RELNOTES >> RELNOTES.NEW
+#将RELNOTES里的内容重定向的RELNOTES.NEW文档里。
 	@mv RELNOTES.NEW RELNOTES
+#重命名
 	@sed -e "s/^%define ssdate .*/%define ssdate $(DATE)/" iputils.spec > iputils.spec.tmp
 	@mv iputils.spec.tmp iputils.spec
 	@echo "static char SNAPSHOT[] = \"$(TAG)\";" > SNAPSHOT.h
+#将"static char SNAPSHOT[] = TAG变量的值;"输出到SNAPSHOT.h
 	@$(MAKE) -C doc snapshot
+#生成snapshot的doc文档
 	@$(MAKE) man
+#执行man
 	@git commit -a -m "iputils-$(TAG)"
-	@git tag -s -m "iputils-$(TAG)" $(TAG)
+#修补提交（修改最后一次的提交而不创建提交）
+	@git tag -s -m "iputils-$(TAG)" $(TAG)	#-s如果有自己的私钥，还可以用 GPG 来签署标签
 	@git archive --format=tar --prefix=iputils-$(TAG)/ $(TAG) | bzip2 -9 > ../iputils-$(TAG).tar.bz2
+#从git仓库中导出项目
 
