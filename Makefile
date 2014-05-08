@@ -3,14 +3,23 @@
 #
 
 # CC
+#编译器用gcc
 CC=gcc
 # Path to parent kernel include files directory
+#库函数的包含路径为/usr/include
 LIBC_INCLUDE=/usr/include
 # Libraries
 ADDLIB=
 # Linker flags
+#-wl 选项告诉编译器把后面的参数传给连接器
+#连接器标志，-Bstatic告诉连接器动态链接到函数库
+#-Bdynamic告诉连接器动态链接道函数库
+
 LDFLAG_STATIC=-Wl,-Bstatic
 LDFLAG_DYNAMIC=-Wl,-Bdynamic
+
+# 下面加载的函数库是cap函数库、TLS加密函数库、crypto加密解密函数库、idn恒等函数库、resolv函数库、sysfs接口函数库等
+
 LDFLAG_CAP=-lcap
 LDFLAG_GNUTLS=-lgnutls-openssl
 LDFLAG_CRYPTO=-lcrypto
@@ -20,45 +29,60 @@ LDFLAG_SYSFS=-lsysfs
 
 #
 # Options
-#
+#定义变量的开关
 
 # Capability support (with libcap) [yes|static|no]
+#支持libcap开发环境
 USE_CAP=yes
 # sysfs support (with libsysfs - deprecated) [no|yes|static]
+# 不支持虚拟文件系统
 USE_SYSFS=no
 # IDN support (experimental) [no|yes|static]
+#不支持IDN（国际化域名）
 USE_IDN=no
 
 # Do not use getifaddrs [no|yes|static]
+#不使用getifaddrs函数
 WITHOUT_IFADDRS=no
 # arping default device (e.g. eth0) []
+#使用缺省的arping_device
 ARPING_DEFAULT_DEVICE=
 
 # GNU TLS library for ping6 [yes|no|static]
+#支持安全套接层
 USE_GNUTLS=yes
 # Crypto library for ping6 [shared|static]
+#共享加密解密函数库
 USE_CRYPTO=shared
 # Resolv library for ping6 [yes|static]
+#使用resolv函数库
 USE_RESOLV=yes
 # ping6 source routing (deprecated by RFC5095) [no|yes|RFC3542]
+#不使用ping6源路由
 ENABLE_PING6_RTHDR=no
 
 # rdisc server (-r option) support [no|yes]
+#rdisc服务器不支持-r选项
 ENABLE_RDISC_SERVER=no
 
 # -------------------------------------
 # What a pity, all new gccs are buggy and -Werror does not work. Sigh.
 # CCOPT=-fno-strict-aliasing -Wstrict-prototypes -Wall -Werror -g
+#编译选项，-fno-strict-aliasing强制转化选项，当优化等级大于等于2的时候该选项有效
+#-Wstrict-prototypes告诉编译器要检查函数的参数，-Wall告诉编译器不要忽略警告信息，-g加入调试信息
 CCOPT=-fno-strict-aliasing -Wstrict-prototypes -Wall -g
+#优化等级为-O3
 CCOPTOPT=-O3
+#库函数遵循GNU标准
 GLIBCFIX=-D_GNU_SOURCE
 DEFINES=
 LDLIB=
-
+#函数库支持动态静态链接
 FUNC_LIB = $(if $(filter static,$(1)),$(LDFLAG_STATIC) $(2) $(LDFLAG_DYNAMIC),$(2))
 
 # USE_GNUTLS: DEF_GNUTLS, LIB_GNUTLS
 # USE_CRYPTO: LIB_CRYPTO
+#判断要加密解密函数库的函数是否重复
 ifneq ($(USE_GNUTLS),no)
 	LIB_CRYPTO = $(call FUNC_LIB,$(USE_GNUTLS),$(LDFLAG_GNUTLS))
 	DEF_CRYPTO = -DUSE_GNUTLS
@@ -67,39 +91,47 @@ else
 endif
 
 # USE_RESOLV: LIB_RESOLV
+#判断crypto函数库是否重复
 LIB_RESOLV = $(call FUNC_LIB,$(USE_RESOLV),$(LDFLAG_RESOLV))
 
 # USE_CAP:  DEF_CAP, LIB_CAP
+#判断CAP函数库中的函数是否重复
 ifneq ($(USE_CAP),no)
 	DEF_CAP = -DCAPABILITIES
 	LIB_CAP = $(call FUNC_LIB,$(USE_CAP),$(LDFLAG_CAP))
 endif
 
 # USE_SYSFS: DEF_SYSFS, LIB_SYSFS
+#判断虚拟文件系统中的接口有没有重复
 ifneq ($(USE_SYSFS),no)
 	DEF_SYSFS = -DUSE_SYSFS
 	LIB_SYSFS = $(call FUNC_LIB,$(USE_SYSFS),$(LDFLAG_SYSFS))
 endif
 
 # USE_IDN: DEF_IDN, LIB_IDN
+#判断IDE恒等函数库中的函数是否重复
 ifneq ($(USE_IDN),no)
 	DEF_IDN = -DUSE_IDN
 	LIB_IDN = $(call FUNC_LIB,$(USE_IDN),$(LDFLAG_IDN))
 endif
 
 # WITHOUT_IFADDRS: DEF_WITHOUT_IFADDRS
+#判断是否使用了ifaddrs函数接口，如果使用了则禁用
 ifneq ($(WITHOUT_IFADDRS),no)
 	DEF_WITHOUT_IFADDRS = -DWITHOUT_IFADDRS
 endif
 
 # ENABLE_RDISC_SERVER: DEF_ENABLE_RDISC_SERVER
+#判断是否使用了
 ifneq ($(ENABLE_RDISC_SERVER),no)
 	DEF_ENABLE_RDISC_SERVER = -DRDISC_SERVER
 endif
 
 # ENABLE_PING6_RTHDR: DEF_ENABLE_PING6_RTHDR
+#失能ping6原路由
 ifneq ($(ENABLE_PING6_RTHDR),no)
 	DEF_ENABLE_PING6_RTHDR = -DPING6_ENABLE_RTHDR
+#禁止使用RFC3542
 ifeq ($(ENABLE_PING6_RTHDR),RFC3542)
 	DEF_ENABLE_PING6_RTHDR += -DPINR6_ENABLE_RTHDR_RFC3542
 endif
@@ -121,14 +153,17 @@ TAG:=$(shell date --date=$(TODAY) +s%Y%m%d)
 
 
 # -------------------------------------
+#编译c语言程序产生目标文件，并清除产生的中间文件
 .PHONY: all ninfod clean distclean man html check-kernel modules snapshot
 
 all: $(TARGETS)
-
+#COMPILE.C = $(CC) $(CFLAGS) $(CPPFLAGS) -c
 %.s: %.c
 	$(COMPILE.c) $< $(DEF_$(patsubst %.o,%,$@)) -S -o $@
+#产生目标文件，$<是依赖文件的集合，$@是目标文件的集合
 %.o: %.c
 	$(COMPILE.c) $< $(DEF_$(patsubst %.o,%,$@)) -o $@
+#将.o文件的后缀名去掉
 $(TARGETS): %: %.o
 	$(LINK.o) $^ $(LIB_$@) $(LDLIBS) -o $@
 
